@@ -8,11 +8,14 @@
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 
   // Theme toggle
-  $('.theme').addEventListener('click', () => {
+  const themeBtn = $('.theme');
+  themeBtn.addEventListener('click', () => {
     const next = root.dataset.theme === 'light' ? 'dark' : 'light';
     root.dataset.theme = next;
+    themeBtn.setAttribute('aria-pressed', String(next === 'light'));
     try { localStorage.setItem('theme', next); } catch (e) {}
   });
+  themeBtn.setAttribute('aria-pressed', String(root.dataset.theme === 'light'));
 
   // Toast
   const toast = $('.toast');
@@ -26,7 +29,7 @@
 
   // Copy email
   $$('[data-copy]').forEach((b) => b.addEventListener('click', async (e) => {
-    try { await navigator.clipboard.writeText(b.dataset.copy); say('Email copied'); if (!calm) confetti(40, e.clientX); }
+    try { await navigator.clipboard.writeText(b.dataset.copy); say('Email copied'); if (!calm) { const r = b.getBoundingClientRect(); confetti(40, e.detail ? e.clientX : r.left + r.width / 2); } }
     catch (err) { location.href = 'mailto:' + b.dataset.copy; }
   }));
 
@@ -41,7 +44,7 @@
 
   // Project filters
   $$('.filters button').forEach((btn) => btn.addEventListener('click', () => {
-    $$('.filters button').forEach((b) => b.classList.toggle('on', b === btn));
+    $$('.filters button').forEach((b) => { b.classList.toggle('on', b === btn); b.setAttribute('aria-pressed', String(b === btn)); });
     const f = btn.dataset.filter;
     $$('.card').forEach((c) => c.classList.toggle('hide', f !== 'all' && c.dataset.cat !== f));
   }));
@@ -74,7 +77,6 @@
     .catch(() => {});
 
   if (calm) return; // Everything below is motion.
-  window.__fx = true;
 
   // Reveal on scroll, plus one-shot triggers for counters and the terminal
   const once = new Map();
@@ -86,12 +88,13 @@
     io.unobserve(en.target);
   }), { threshold: 0.15 });
   $$('.reveal').forEach((el, i) => { el.style.transitionDelay = `${(i % 4) * 70}ms`; io.observe(el); });
+  window.__fx = true;
 
   // Count-up stats
   $$('[data-count]').forEach((el) => {
     const end = +el.dataset.count, suffix = el.dataset.suffix || '';
-    el.textContent = '0' + suffix;
     once.set(el.closest('.reveal'), () => {
+      el.textContent = '0' + suffix;
       const t0 = performance.now(), dur = 1400;
       const step = (t) => {
         const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 4);
@@ -105,14 +108,16 @@
   // Rotating tagline, typed and deleted
   const lines = ['Watching agents work.', 'Measuring what context is worth.', 'Making evaluation honest.', 'Keeping agents accountable.'];
   const rot = $('#rotate');
-  let li = 0, ci = lines[0].length, deleting = true;
+  let li = 0, ci = lines[0].length, deleting = true, shown = 0;
   const tick = () => {
     const word = lines[li];
     ci += deleting ? -1 : 1;
     rot.textContent = word.slice(0, ci);
     let wait = deleting ? 28 : 55;
-    if (!deleting && ci === word.length) { deleting = true; wait = 2200; }
-    else if (deleting && ci === 0) { deleting = false; li = (li + 1) % lines.length; wait = 350; }
+    if (!deleting && ci === word.length) {
+      if (++shown >= lines.length * 2) return; // two passes, then hold (WCAG 2.2.2)
+      deleting = true; wait = 2200;
+    } else if (deleting && ci === 0) { deleting = false; li = (li + 1) % lines.length; wait = 350; }
     setTimeout(tick, wait);
   };
   setTimeout(tick, 2600);
@@ -120,8 +125,8 @@
   // Terminal: retype the lines that are already in the HTML
   const term = $('#term');
   const termLines = $$('.l', term).map((el) => ({ html: el.innerHTML, out: el.classList.contains('o') }));
-  term.innerHTML = '';
   once.set(term.closest('.reveal'), async () => {
+    term.innerHTML = '';
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const { html, out } of termLines) {
       const span = document.createElement('span');
@@ -158,7 +163,7 @@
 
   // Constellation background
   const cv = $('#stars'), cx = cv.getContext('2d');
-  let W, H, pts = [], mouse = { x: -1e4, y: -1e4 }, running = true;
+  let W, H, pts = [], mouse = { x: -1e4, y: -1e4 }, raf = 0;
   const dpr = Math.min(2, devicePixelRatio || 1);
   const resize = () => {
     W = cv.width = innerWidth * dpr; H = cv.height = innerHeight * dpr;
@@ -168,10 +173,9 @@
   resize();
   addEventListener('resize', resize);
   addEventListener('pointermove', (e) => { mouse.x = e.clientX * dpr; mouse.y = e.clientY * dpr; }, { passive: true });
-  document.addEventListener('visibilitychange', () => { running = !document.hidden; if (running) requestAnimationFrame(draw); });
+  document.addEventListener('visibilitychange', () => { cancelAnimationFrame(raf); if (!document.hidden) raf = requestAnimationFrame(draw); });
   const link = 130 * dpr;
   function draw() {
-    if (!running) return;
     const light = root.dataset.theme === 'light';
     cx.clearRect(0, 0, W, H);
     for (const p of pts) {
@@ -193,9 +197,9 @@
     }
     cx.fillStyle = light ? 'rgba(13,16,32,.45)' : 'rgba(220,230,255,.75)';
     for (const p of pts) { cx.beginPath(); cx.arc(p.x, p.y, 1.4 * dpr, 0, 7); cx.fill(); }
-    requestAnimationFrame(draw);
+    raf = requestAnimationFrame(draw);
   }
-  requestAnimationFrame(draw);
+  raf = requestAnimationFrame(draw);
 
   // Confetti (email copy, and the Konami code)
   function confetti(n = 120, originX) {
@@ -214,9 +218,9 @@
     }
   }
   const code = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-  let k = 0;
+  let keys = [];
   addEventListener('keydown', (e) => {
-    k = e.key === code[k] ? k + 1 : e.key === code[0] ? 1 : 0;
-    if (k === code.length) { k = 0; confetti(); say('You found it. Now email me.'); }
+    keys = [...keys, e.key.length === 1 ? e.key.toLowerCase() : e.key].slice(-code.length);
+    if (keys.join() === code.join()) { keys = []; confetti(); say('You found it. Now email me.'); }
   });
 })();
