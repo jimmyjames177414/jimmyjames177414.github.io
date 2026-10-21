@@ -117,7 +117,7 @@ h2 { font-size:clamp(1.8rem,3.5vw,2.6rem); letter-spacing:-.02em; margin:0 0 24p
 .card h3 { margin:8px 0 6px; font-size:1.2rem; }
 .card h3 a { color:var(--fg); }
 .card h3 a::after { content:""; position:absolute; inset:0; }
-.card h3 a::before { content:"↗" / ""; float:right; color:var(--muted); transition:transform .25s,color .25s; }
+.card h3 a::before { content:"↗"; content:"↗" / ""; float:right; color:var(--muted); transition:transform .25s,color .25s; }
 .card:hover h3 a::before { transform:translate(3px,-3px); color:var(--a2); }
 .card p { margin:0; color:var(--muted); font-size:.95rem; }
 .meta { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:14px; font:.78rem var(--mono); color:var(--muted); }
@@ -148,7 +148,7 @@ h2 { font-size:clamp(1.8rem,3.5vw,2.6rem); letter-spacing:-.02em; margin:0 0 24p
 .marquee { padding:20px 0; overflow:hidden; -webkit-mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent); mask:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent); }
 .track { display:flex; gap:14px; width:max-content; animation:scroll 34s linear infinite; }
 .track span { padding:10px 20px; border:1px solid var(--line); border-radius:999px; background:var(--glass); white-space:nowrap; font-weight:500; }
-.marquee:hover .track, .marquee:focus-within .track { animation-play-state:paused; }
+.marquee:hover .track, .marquee:focus .track, .marquee:active .track { animation-play-state:paused; }
 @keyframes scroll { to { transform:translateX(calc(-50% - 7px)); } }
 
 /* Contact */
