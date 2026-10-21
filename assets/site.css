@@ -208,3 +208,96 @@ footer { position:relative; z-index:1; text-align:center; padding:28px; color:va
 .article th { color:var(--fg); }
 .article td:last-child, .article th:last-child { text-align:right; font-family:var(--mono); }
 .article .back { margin-top:40px; }
+
+/* Résumé page (/resume/): screen layout, then a print layout that the PDF is generated from */
+.resume { max-width:900px; margin:0 auto; padding:48px 0 72px; }
+.resume section { padding:0; }
+.r-head { position:relative; display:grid; grid-template-columns:1fr auto; gap:18px 32px; align-items:end; padding:34px 36px; border:1px solid var(--line); border-radius:var(--radius); background:var(--glass); backdrop-filter:blur(16px) saturate(1.3); -webkit-backdrop-filter:blur(16px) saturate(1.3); overflow:hidden; }
+.r-head::before { content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--grad); }
+.r-head h1 { margin:0 0 8px; font-size:clamp(2.1rem,5vw,3.1rem); line-height:1.05; letter-spacing:-.03em; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.r-title { margin:0; font-weight:600; font-size:1.08rem; }
+.r-loc { margin:6px 0 0; color:var(--muted); font-size:.95rem; }
+.r-contact { list-style:none; margin:0; padding:0; text-align:right; font:.86rem/1.9 var(--mono); }
+.r-actions { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:10px; margin:6px 0 0; }
+.r-summary { margin:28px 4px 0; }
+.r-summary p { margin:0; font-size:1.08rem; color:var(--muted); }
+.r-summary strong { color:var(--fg); font-weight:600; }
+.r-stats { list-style:none; margin:24px 0 0; padding:0; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.r-stats li { padding:16px 18px; border:1px solid var(--line); border-radius:14px; background:var(--glass); }
+.r-stats b { display:block; font:800 1.9rem/1 Inter,system-ui,sans-serif; letter-spacing:-.02em; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.r-stats span { display:block; margin-top:6px; font-size:.84rem; line-height:1.35; color:var(--muted); }
+.r-sec { margin-top:44px; }
+.r-sec h2 { display:flex; align-items:center; gap:14px; margin:0 0 18px; font:600 .8rem var(--mono); text-transform:uppercase; letter-spacing:.14em; color:var(--a2); }
+.r-sec h2::after { content:""; flex:1; height:1px; background:var(--line); }
+.r-org { position:relative; padding:0 0 26px 26px; border-left:1px solid var(--line); }
+.r-org::before { content:""; position:absolute; left:-6px; top:8px; width:11px; height:11px; border-radius:50%; background:var(--grad); box-shadow:0 0 0 4px var(--bg); }
+.r-org:last-child { padding-bottom:4px; }
+.r-org-head, .r-role-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 14px; }
+.r-org-head h3 { margin:0; font-size:1.3rem; letter-spacing:-.01em; }
+.r-role { margin-top:12px; }
+.r-role-head h4 { margin:0; font-size:1.02rem; font-weight:600; }
+.r-place { color:var(--muted); font-size:.92rem; }
+.r-when { margin-left:auto; font:600 .84rem var(--mono); color:var(--a2); white-space:nowrap; }
+.r-note { margin:2px 0 0; font-size:.88rem; color:var(--muted); font-style:italic; }
+.r-role ul, .r-oss, .r-rec { margin:8px 0 0; padding-left:1.1em; }
+.r-role li, .r-oss li, .r-rec li { margin:5px 0; color:var(--muted); font-size:.97rem; line-height:1.55; }
+.r-role li::marker, .r-oss li::marker, .r-rec li::marker { color:var(--a1); }
+.r-lede, .r-more { color:var(--muted); font-size:.95rem; margin:0; }
+.r-more { margin-top:8px; font-family:var(--mono); font-size:.84rem; }
+.r-oss a[href^="https://github.com/jimmyjames177414/"] { font-family:var(--mono); font-weight:600; }
+.r-track { display:block; font:600 .74rem var(--mono); text-transform:uppercase; letter-spacing:.1em; color:var(--a2); }
+.r-cols { display:grid; grid-template-columns:1.6fr 1fr; gap:0 40px; }
+.r-skills { margin:0; }
+.r-skills dt { font-weight:600; font-size:.95rem; }
+.r-skills dd { margin:2px 0 12px; color:var(--muted); font-size:.93rem; }
+.r-edu { margin:0 0 28px; line-height:1.6; }
+.r-cols .r-sec h2 + * { margin-top:0; }
+@media screen and (max-width:760px) {
+  .r-head { grid-template-columns:1fr; padding:26px 22px; }
+  .r-contact { text-align:left; }
+  .r-stats { grid-template-columns:repeat(2,1fr); }
+  .r-cols { grid-template-columns:1fr; }
+  .r-when { margin-left:0; }
+}
+
+@page resume { size:Letter; margin:0.45in 0.55in; }
+@media print {
+  html:has(body.resume-page) { background:#fff !important; font-size:9.6pt; }
+  body.resume-page { page:resume; --bg:#fff; --fg:#0d1020; --muted:#2c3247; --line:#d5d9e3; --a1:#4b32d6; --a2:#005f80; --a3:#8f1275; --glass:transparent; background:#fff !important; color:#0d1020; font-size:9.6pt; line-height:1.42; }
+  body.resume-page .bg, body.resume-page .nav, body.resume-page footer, body.resume-page .cursor-glow, body.resume-page .progress, .r-actions { display:none !important; }
+  body.resume-page main { max-width:none; padding:0; }
+  body.resume-page a { color:inherit; text-decoration:none; }
+  /* positioned boxes are painted after normal flow, so the PDF's text order would put the header and every job last */
+  .r-head, .r-org { position:static; }
+  .r-org::before { display:none; }
+  .resume { max-width:none; padding:0; }
+  .r-head { padding:0 0 10px; border:0; border-bottom:1.5px solid #0d1020; border-radius:0; background:none; backdrop-filter:none; -webkit-backdrop-filter:none; gap:6px 20px; }
+  .r-head::before { display:none; }
+  .r-head h1 { font-size:22pt; margin:0 0 3px; background:none; color:#3b2fc9; -webkit-text-fill-color:#3b2fc9; }
+  .r-title { font-size:10.5pt; }
+  .r-loc { font-size:9.5pt; margin-top:2px; }
+  .r-contact { font-size:8.6pt; line-height:1.55; }
+  .r-summary { margin:10px 0 0; }
+  .r-summary p { font-size:9.8pt; color:#0d1020; }
+  .r-stats { margin:10px 0 0; gap:8px; }
+  .r-stats li { padding:6px 9px; border-radius:8px; border-color:#d5d9e3; }
+  .r-stats b { font-size:14pt; background:none; color:#3b2fc9; -webkit-text-fill-color:#3b2fc9; }
+  .r-stats span { font-size:7.8pt; margin-top:2px; }
+  .r-sec { margin-top:12px; }
+  .r-sec h2 { margin:0 0 7px; font-size:8pt; }
+  .r-org { padding:0 0 9px 14px; break-inside:auto; }
+  .r-org-head h3 { font-size:11.5pt; }
+  .r-role { margin-top:5px; }
+  .r-org-head, .r-role-head, .r-note { break-after:avoid-page; }
+  .r-role li, .r-oss li { break-inside:avoid; }
+  .r-sec h2 { break-after:avoid-page; }
+  .r-role-head h4 { font-size:10pt; }
+  .r-place, .r-when, .r-note { font-size:8.6pt; }
+  .r-role ul, .r-oss, .r-rec { margin-top:3px; }
+  .r-role li, .r-oss li, .r-rec li, .r-lede, .r-skills dd { font-size:9.1pt; line-height:1.38; margin:2px 0; color:#2c3247; }
+  .r-track { display:inline; margin-right:5px; font-size:7.4pt; }
+  .r-cols { gap:0 26px; break-inside:avoid-page; }
+  .r-skills dt { font-size:9.2pt; }
+  .r-skills dd { margin:0 0 5px; }
+  .r-edu { margin:0 0 10px; font-size:9.4pt; }
+}

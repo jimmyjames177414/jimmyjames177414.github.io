@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>errorbars: is that 4-point eval win real? | James Robert Miller</title>
+<meta name="description" content="Why a typical LLM eval comparison cannot tell a null result from a run that was too small, and how errorbars tells them apart with paired tests, bootstrap intervals and power analysis. By James Robert Miller (jimmyjames177414).">
+<meta name="author" content="James Robert Miller">
+<link rel="canonical" href="https://jimmyjames177414.github.io/notes/errorbars/">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png">
+<meta name="theme-color" content="#07080d">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="James Robert Miller">
+<meta property="og:title" content="errorbars: is that 4-point eval win real?">
+<meta property="og:description" content="Most eval harnesses print a percentage and stop. errorbars says how small an effect a run can detect, and separates &quot;did nothing&quot; from &quot;too small to tell&quot;.">
+<meta property="og:url" content="https://jimmyjames177414.github.io/notes/errorbars/">
+<meta property="og:image" content="https://raw.githubusercontent.com/jimmyjames177414/errorbars/main/docs/demo.png">
+<meta property="og:image:alt" content="errorbars power output for 200 items at 5 repeats, showing a minimum detectable effect of 9.3 percentage points">
+<meta property="article:author" content="https://jimmyjames177414.github.io/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "errorbars: is that 4-point eval win real?",
+  "url": "https://jimmyjames177414.github.io/notes/errorbars/",
+  "mainEntityOfPage": "https://jimmyjames177414.github.io/notes/errorbars/",
+  "datePublished": "2026-10-21T07:00:00-05:00",
+  "dateModified": "2026-10-21T07:00:00-05:00",
+  "image": "https://raw.githubusercontent.com/jimmyjames177414/errorbars/main/docs/demo.png",
+  "author": {
+    "@type": "Person",
+    "@id": "https://jimmyjames177414.github.io/#person",
+    "name": "James Robert Miller",
+    "alternateName": "jimmyjames177414",
+    "url": "https://jimmyjames177414.github.io/"
+  },
+  "about": {
+    "@type": "SoftwareSourceCode",
+    "name": "errorbars",
+    "codeRepository": "https://github.com/jimmyjames177414/errorbars",
+    "programmingLanguage": "Python",
+    "license": "https://www.apache.org/licenses/LICENSE-2.0"
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>(function(d){try{var t=localStorage.getItem('theme');if(t)d.dataset.theme=t;}catch(e){}})(document.documentElement);</script>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="grain"></div>
+</div>
+
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="../../" aria-label="James Robert Miller, home"><span>JRM</span></a>
+  <ul>
+    <li><a href="../../#projects">Projects</a></li>
+    <li><a href="../../#timeline">Experience</a></li>
+    <li><a href="../../#contact">Contact</a></li>
+  </ul>
+  <button class="theme" type="button" aria-label="Light theme" aria-pressed="false"><span class="sun">☀</span><span class="moon">☾</span></button>
+</nav>
+
+<main>
+<article class="article">
+  <p class="eyebrow"><span class="dot"></span> Notes · errorbars</p>
+  <h1>Is that 4-point eval win <span class="grad">real</span>?</h1>
+  <p class="byline">By <a href="../../">James Robert Miller</a> (jimmyjames177414) · <time datetime="2026-10-21">October 2026</time> · <a href="https://github.com/jimmyjames177414/errorbars">errorbars on GitHub</a></p>
+
+  <p>I change a prompt, run the eval, and the score goes from 80% to 84%. Is that a win? From those two numbers, nobody can tell, because nothing in them says how big a difference this eval can separate from noise.</p>
+  <p>Eval harnesses print percentages. Almost none print an interval, a paired comparison against a control, or a power calculation. So eval sets get sized by feel, and two opposite outcomes look the same: "this change did nothing" and "this run was too small to notice" both come out as <code>p &gt; 0.05</code>.</p>
+  <p>errorbars is a small open-source command-line tool and Python library I built to do that statistics. It answers two questions: how small an effect can this run see, and is this difference bigger than this run's noise?</p>
+
+  <figure>
+    <img src="https://raw.githubusercontent.com/jimmyjames177414/errorbars/main/docs/demo.png" alt="errorbars power output for 200 items at 5 repeats: design effect 3.00, effective n 333, minimum detectable effect 9.3 percentage points, and a sensitivity block for the pairing correlation" loading="lazy">
+    <figcaption><code>errorbars power</code> for 200 items at 5 repeats, from the project README. No model calls and no API key.</figcaption>
+  </figure>
+
+  <h2>How small a difference can an eval see?</h2>
+  <p>The answer is the minimum detectable effect, or MDE: the smallest difference a run of a given shape would catch with 80% power at a two-sided alpha of 0.05. <code>errorbars power</code> computes it from the design alone, with no model calls. For a 200-item eval with an 80% baseline:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Design</th><th>MDE</th></tr></thead>
+    <tbody>
+      <tr><td>1 run per item</td><td>12.3 pp</td></tr>
+      <tr><td>5 repeats, every call independent (ICC 0)</td><td>5.2 pp</td></tr>
+      <tr><td>5 repeats, ICC 0.5</td><td>9.3 pp</td></tr>
+      <tr><td>5 repeats, ICC 0.9</td><td>11.7 pp</td></tr>
+      <tr><td>5 repeats, ICC 0.9, pairing correlation 0.9</td><td>3.8 pp</td></tr>
+    </tbody>
+  </table></div>
+  <p>Repeats help less than people expect, because a question the model reliably gets right is right all five times. The intraclass correlation (ICC) is the share of variance that lives between items rather than within them. At ICC 0.9, 1,000 calls per arm are worth about 217 independent ones.</p>
+  <p>Pairing is the large, free improvement. Most of the variance in an eval score comes from which questions you happened to pick. Run the control and the treatment on the same items, compare each item to itself, and the part of that variance shared by both arms cancels. The pairing correlation says how strongly item difficulty carries across the two arms; in the last row it takes 11.7 pp to 3.8 pp for the same 1,000 calls per arm. Even then, detecting a 2-point effect would take about 717 items at 5 repeats.</p>
+  <p>Both inputs are guesses until measured. The default pairing correlation of 0 assumes pairing buys nothing, so it never flatters the MDE; the default ICC of 0.5 can, when pairing is weak, because real evals often sit higher. Above a pairing correlation of 0.8 at 5 repeats the direction flips. <code>errorbars analyze</code> measures both from a pilot run.</p>
+
+  <h2>Did nothing, or too small to tell?</h2>
+  <p>This is the distinction I built the tool for. Each intervention gets one of three verdicts:</p>
+  <ul>
+    <li><strong>significant:</strong> the Holm-adjusted p-value is at or below alpha.</li>
+    <li><strong>null:</strong> not significant, and the whole 95% interval sits inside the margin: the --sesoi you named, or by default the smallest effect this run could detect. The run could have seen an effect that size, and rules one out.</li>
+    <li><strong>underpowered:</strong> not significant, but the interval still includes an effect as large as the margin, so the run cannot tell no effect from an effect worth caring about.</li>
+  </ul>
+  <p>You can set the margin with <code>errorbars analyze &lt;results-dir&gt; --sesoi 2pp</code>. By default it is the smaller of two MDEs, the power model's prediction for this design and the one implied by the precision the run achieved, because a null is a positive claim and should be the harder verdict to earn.</p>
+  <p>This is the shipped demo. It runs against a deterministic simulator in the repository, not a language model, so the numbers measure nothing real.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Intervention</th><th>Effect</th><th>95% CI</th><th>Holm p</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><code>strip-negation</code></td><td>-23.7 pp</td><td>[-29.3, -18.3]</td><td>&lt;0.001</td><td>significant</td></tr>
+      <tr><td><code>strip-politeness</code></td><td>-0.1 pp</td><td>[-1.6, +1.4]</td><td>1.000</td><td>null</td></tr>
+      <tr><td><code>strip-articles</code></td><td>-2.3 pp</td><td>[-4.6, -0.1]</td><td>0.099</td><td>underpowered</td></tr>
+    </tbody>
+  </table></div>
+  <p>After Holm correction rows two and three both miss significance, so a bare <code>p &gt; 0.05</code> prints them the same way. Uncorrected, strip-articles sits on the line at p = 0.0496. The politeness interval sits inside a ±2.2 pp margin, so that run rules out an effect of that size. The articles interval still admits a 3.2 pp effect, so the run cannot tell no effect from one worth caring about. The simulator builds in a real articles effect of about -3 pp, and a margin from the design model alone (4.8 pp) would have called it null.</p>
+
+  <h2>What it computes</h2>
+  <p>All of it is numpy and the Python standard library, with no scipy.</p>
+  <ul>
+    <li><strong>Intervals:</strong> a paired percentile bootstrap that resamples items, not trials (single-arm rates with one trial per item use a Wilson interval). Trials on the same item are correlated, and resampling them gives an interval that is too narrow.</li>
+    <li><strong>Significance:</strong> a paired sign-flip permutation test on per-item differences, with the <code>(b + 1) / (B + 1)</code> p-value from Phipson and Smyth (2010), so it never reports p = 0 when signs are sampled; at 16 items or fewer it enumerates every sign pattern exactly.</li>
+    <li><strong>Several interventions:</strong> Holm-Bonferroni step-down. Intervals are per-comparison and p-values family-wise, and the column headers say so; <code>--simultaneous-ci</code> builds Bonferroni intervals at alpha/m so both columns control the family-wise error rate (Bonferroni is slightly more conservative than Holm, so they can still disagree).</li>
+    <li><strong>Power:</strong> a normal-approximation model of the paired, repeated design. <code>errorbars analyze</code> measures its two inputs as a one-way random-effects ICC(1) and a Pearson correlation of per-item scores across arms. At one repeat with no pairing it reduces exactly to the textbook two-proportion formula.</li>
+  </ul>
+
+  <h2>Trials that never resolved</h2>
+  <p>Some trials never resolve: a truncated trace, a dropped connection. A boolean <code>passed</code> field has nowhere honest to put them, so the tempting fix is <code>passed: false</code>. errorbars reads CXS, the small results-file format shared by this family of tools, whose 0.1.1 <code>verdict</code> field can say <code>inconclusive</code> or <code>error</code>. Those trials are skipped, counted and reported, never put in a denominator.</p>
+  <p>On the shipped synthetic fixture, where a tenth of the trials never resolved, folding them all in as failures moves the control rate from 76.9% to 69.6%, while the effect moves only 1.7 points, because the bias lands on every arm at once. Both readings still say significant. That partial cancellation is how the bug survives review.</p>
+
+  <h2>Checking the arithmetic</h2>
+  <p>This tool has already got its own arithmetic wrong once. Partway through the build, running <code>errorbars power</code> on the project's own planned design, 200 items at 5 repeats, reported an effective sample size smaller than the item count. That cannot happen: effective n can never fall below the item count, and with no pairing benefit the design effect never exceeds the repeat count, so for that design it is pinned between 200 and 1,000. The power model was wrong.</p>
+  <p>It is fixed, and the arithmetic is now checked against outside references. Bootstrap 95% intervals contain the true value 94.9% of the time for one arm and 94.4% for a paired effect, over 1,000 simulated experiments. At an alpha of 0.05, the permutation test's false-positive rate under a true null is 0.051 on continuous data and 0.048 on binary data. Wilson reproduces the four reference intervals in Newcombe (1998), Holm reproduces R's <code>p.adjust</code>, and required N matches hand computation: 80% to 85% needs 906 items per arm. Every seed is fixed, so those figures reproduce.</p>
+
+  <h2>What it will not do</h2>
+  <ul>
+    <li><strong>It is not an eval harness:</strong> no test-case management, assertion library, web UI or tracing. For a regression suite, use promptfoo. For rigorous repeated trials in Python, use Inspect AI, which already reports standard errors.</li>
+    <li><strong>It ships no LLM-judge scorer</strong>, because a judge adds variance nothing here models.</li>
+    <li><strong><code>errorbars run</code> is a deliberately small runner</strong>, and it will not run without a control arm: if a spec has none, it injects one and warns you.</li>
+  </ul>
+
+  <h2>Limits</h2>
+  <ul>
+    <li><strong>The bootstrap assumes items are independent.</strong> Two hundred paraphrases of five questions is really five items, and errorbars cannot detect that.</li>
+    <li><strong>The design-effect correction is an approximation</strong>, and everything is frequentist.</li>
+    <li><strong>A default null is self-referential:</strong> the interval and the run's own MDE shrink together, so a bigger run does not make null easier to earn. Pass <code>--sesoi</code> and mean it.</li>
+    <li><strong>The trials that resolved</strong> may not be representative of the ones you meant to run.</li>
+  </ul>
+
+  <h2>What the prior-art search cut</h2>
+  <p>The original idea was a YAML-driven experiment runner for LLMs, which promptfoo and lm-evaluation-harness already provide, so the <a href="https://github.com/jimmyjames177414/errorbars/blob/main/NOVELTY.md">prior-art search</a> cut it to the statistics layer, and renamed it, because the working title was already the GitHub organisation of an academic lab. The search also lists claims errorbars may never make. "No framework reports variance" is one; Inspect AI does.</p>
+  <p>The methods are not new either. errorbars builds on Evan Miller's paper <a href="https://arxiv.org/abs/2411.00640">Adding Error Bars to Evals: A Statistical Approach to Language Model Evaluations</a> (arXiv:2411.00640), which the name nods to, and Anany Kotawala's <a href="https://arxiv.org/abs/2605.30315">Resolution Diagnostics for Paired LLM Evaluation</a> (arXiv:2605.30315). What none of the tools I surveyed in September 2026 had was a per-intervention effect table, null results as a first-class output, and power up front. Since then a separate PyPI package, also named errorbars, has added power analysis and paired comparisons.</p>
+
+  <h2>Try it</h2>
+  <p>This errorbars is not on PyPI; the package there with the same name is a different project. Run this one from GitHub with <a href="https://docs.astral.sh/uv/">uv</a>:</p>
+  <pre><code>uvx --from git+https://github.com/jimmyjames177414/errorbars errorbars power --items 200 --repeats 5 --baseline 0.80</code></pre>
+  <p>To see the verdict table, clone the repository and, from inside it, run <code>uvx --from . errorbars run examples/negation-sensitivity.yaml --analyze</code>. For real models, the runner talks to OpenAI-compatible endpoints. <a href="https://github.com/jimmyjames177414/errorbars/blob/main/docs/statistics.md">docs/statistics.md</a> explains the power model, intervals, Holm and the verdicts for an engineer with no statistics background.</p>
+  <p>errorbars is Apache-2.0, written in Python, and on GitHub at <a href="https://github.com/jimmyjames177414/errorbars">github.com/jimmyjames177414/errorbars</a>. If you have an eval result you have been quoting without an interval, run <code>errorbars power</code> on its design. I would like to hear what it says.</p>
+
+  <p class="back"><a href="../../#projects">← All projects</a></p>
+</article>
+</main>
+
+<footer>James Robert Miller · jimmyjames177414 · <a href="../../">jimmyjames177414.github.io</a><br>Personal site. Views and open-source projects here are my own, not Accenture's.</footer>
+
+<script>
+(function(){var r=document.documentElement,b=document.querySelector('.theme');
+b.setAttribute('aria-pressed',String(r.dataset.theme==='light'));
+b.addEventListener('click',function(){var n=r.dataset.theme==='light'?'dark':'light';r.dataset.theme=n;b.setAttribute('aria-pressed',String(n==='light'));try{localStorage.setItem('theme',n);}catch(e){}});})();
+</script>
+</body>
+</html>
