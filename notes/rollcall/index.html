@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rollcall: finding the work your AI coding agents left behind | James Robert Miller</title>
+<meta name="description" content="Why a dirty git worktree with no live agent is invisible to single-source tools, and how rollcall finds it. By James Robert Miller (jimmyjames177414).">
+<meta name="author" content="James Robert Miller">
+<link rel="canonical" href="https://jimmyjames177414.github.io/notes/rollcall/">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../../assets/apple-touch-icon.png">
+<meta name="theme-color" content="#07080d">
+
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="James Robert Miller">
+<meta property="og:title" content="rollcall: finding the work your AI coding agents left behind">
+<meta property="og:description" content="A dirty git worktree whose agent process has died is invisible to tools that read one source. rollcall joins three.">
+<meta property="og:url" content="https://jimmyjames177414.github.io/notes/rollcall/">
+<meta property="og:image" content="https://raw.githubusercontent.com/jimmyjames177414/rollcall/main/docs/demo.png">
+<meta property="og:image:alt" content="rollcall terminal output listing live agents and worktrees">
+<meta property="article:author" content="https://jimmyjames177414.github.io/">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "rollcall: finding the work your AI coding agents left behind",
+  "url": "https://jimmyjames177414.github.io/notes/rollcall/",
+  "mainEntityOfPage": "https://jimmyjames177414.github.io/notes/rollcall/",
+  "datePublished": "2026-10-21",
+  "dateModified": "2026-10-21",
+  "image": "https://raw.githubusercontent.com/jimmyjames177414/rollcall/main/docs/demo.png",
+  "author": {
+    "@type": "Person",
+    "@id": "https://jimmyjames177414.github.io/#person",
+    "name": "James Robert Miller",
+    "alternateName": "jimmyjames177414",
+    "url": "https://jimmyjames177414.github.io/"
+  },
+  "about": {
+    "@type": "SoftwareSourceCode",
+    "name": "rollcall",
+    "codeRepository": "https://github.com/jimmyjames177414/rollcall",
+    "programmingLanguage": "Python",
+    "license": "https://www.apache.org/licenses/LICENSE-2.0"
+  }
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>(function(d){try{var t=localStorage.getItem('theme');if(t)d.dataset.theme=t;}catch(e){}})(document.documentElement);</script>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="grain"></div>
+</div>
+
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="../../" aria-label="James Robert Miller, home"><span>JRM</span></a>
+  <ul>
+    <li><a href="../../#projects">Projects</a></li>
+    <li><a href="../../#timeline">Experience</a></li>
+    <li><a href="../../#contact">Contact</a></li>
+  </ul>
+  <button class="theme" type="button" aria-label="Light theme" aria-pressed="false"><span class="sun">☀</span><span class="moon">☾</span></button>
+</nav>
+
+<main>
+<article class="article">
+  <p class="eyebrow"><span class="dot"></span> Notes · rollcall</p>
+  <h1>Finding the work your AI coding agents <span class="grad">left behind</span></h1>
+  <p class="byline">By <a href="../../">James Robert Miller</a> (jimmyjames177414) · <time datetime="2026-10-21">October 2026</time> · <a href="https://github.com/jimmyjames177414/rollcall">rollcall on GitHub</a></p>
+
+  <p>When I run several AI coding agents at once, each one usually works in its own git worktree. That is a good habit: agents stay out of each other's files, and every task gets its own branch. It also creates a failure that makes no noise. An agent's process ends, through a crash, a closed terminal or a deleted session, and its worktree stays on disk with uncommitted changes in it. Nothing tells you. The work just sits there.</p>
+  <p>This is not hypothetical. Claude Code's own documentation for <a href="https://code.claude.com/docs/en/agent-view">Agent View</a> says some session deletes leave the worktree directory behind, that directories git no longer recognizes do not appear in <code>git worktree list</code>, and that you should "remove those by hand."</p>
+  <p>rollcall is a small, read-only command-line tool I wrote to find that state. It answers one question: who owns this work, and are they still alive?</p>
+
+  <figure>
+    <img src="https://raw.githubusercontent.com/jimmyjames177414/rollcall/main/docs/demo.png" alt="rollcall terminal output: a roll call of live agents and worktrees, with SHARED and UNCLAIMED rows and findings underneath" loading="lazy">
+    <figcaption>rollcall's terminal output, from the project README. The findings at the bottom are the point; everything above them is a nicer <code>ps</code>.</figcaption>
+  </figure>
+
+  <h2>Why no single source can answer it</h2>
+  <p>Every comparable tool I looked at reads one source. Usage monitors read billing and token files. Session dashboards read session files. Worktree managers know about the worktrees they created. None of them can tell you that a dirty worktree has no live owner, because that fact exists only when three sources are put side by side:</p>
+  <ul>
+    <li><strong>The operating system's process table:</strong> which agent processes are running, their working directories, and when each one started.</li>
+    <li><strong>Each provider's session metadata:</strong> Claude Code's agent list and Codex's session files, which say which session is working where.</li>
+    <li><strong>Git:</strong> every worktree, its branch, and whether it holds uncommitted changes.</li>
+  </ul>
+  <p>rollcall joins the three. A worktree with one live owner is <code>ACTIVE</code> or <code>IDLE</code>, depending on whether its session reports it is working; two or more live owners make it <code>SHARED</code>. A worktree no live process owns is <code>UNCLAIMED</code>, and an unclaimed worktree that still holds uncommitted changes is the finding the tool exists for. When ownership genuinely cannot be determined, the answer is <code>UNKNOWN</code>, and rollcall reports it as unknown rather than guessing. Take away any one input and that finding cannot be computed at all.</p>
+
+  <h2>Ownership is a claim, not a fact</h2>
+  <p>rollcall never states ownership as a fact. Each claim carries the evidence it rests on and a confidence:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Evidence</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr><td>The provider named this directory for that session</td><td>0.95</td></tr>
+      <tr><td>A live process's working directory is inside the worktree</td><td>0.85</td></tr>
+      <tr><td>A live process's working directory contains the worktree</td><td>0.45</td></tr>
+      <tr><td>The path looks like <code>.claude/worktrees/&lt;name&gt;</code></td><td>0.25</td></tr>
+    </tbody>
+  </table></div>
+  <p>The last row matters most. A path like that is evidence of where a worktree came from, not of who owns it now, and it outlives the process that created it. Mistaking it for a live owner would hide exactly the case the tool is looking for.</p>
+  <p>Liveness gets the same care. A process ID is not an identity, because the operating system reuses them. rollcall counts a process as alive only when both its ID and its start time still match. An orphan check that trusts a stale process ID reports dead agents as alive, which is worse than no check at all.</p>
+
+  <h2>Every number says where it came from</h2>
+  <p>Different coding agents expose different things. Claude Code reports token counts, Codex also exposes quota, and neither reports cost. Showing an estimate in the same style as a figure the vendor reported is misleading, so every value rollcall shows is labelled as provider-reported, observed, derived, estimated or unavailable. An unavailable value is shown as a dash, never as zero.</p>
+
+  <h2>What it will not do</h2>
+  <ul>
+    <li><strong>It never writes to a repository.</strong> It reads working directories that live agents are using, so every git call runs with <code>--no-optional-locks</code>, and a test checks that a real scan leaves each git index file's modification time and size, and the output of <code>git status</code>, unchanged.</li>
+    <li><strong>It never launches, stops or controls an agent, and never deletes a worktree.</strong> It tells you a worktree looks abandoned. What to do about it is your call.</li>
+    <li><strong>It never reads conversation text.</strong> It reads session titles, and from session files it extracts only metadata such as the model, the last activity time and token counts.</li>
+    <li><strong>It never sends anything anywhere.</strong> The optional web view binds to <code>127.0.0.1</code> and works offline.</li>
+  </ul>
+
+  <h2>What I cut before writing code</h2>
+  <p>Before any code, I wrote a <a href="https://github.com/jimmyjames177414/rollcall/blob/main/NOVELTY.md">prior-art search</a> for the idea. It changed the project's name, because the working title belonged to a large open-source project. It cut six planned features, and it demoted usage and quota tracking to a thin layer: several existing tools do that better, so rollcall names them in its README and keeps its own usage layer to one job they cannot do, attributing consumption to a worktree. The same document lists the claims rollcall is not allowed to make, such as being the first tool to find orphaned agent processes. It is not.</p>
+
+  <h2>Limits</h2>
+  <ul>
+    <li><strong>Two providers today:</strong> Claude Code and Codex. Gemini CLI, Copilot CLI and OpenCode are declared unsupported, because I could not verify how their live sessions behave, and an adapter that guesses would be inventing a capability.</li>
+    <li><strong>Claude background sessions expose no process ID</strong>, so their owner cannot be checked for liveness. rollcall says so.</li>
+    <li><strong>On WSL</strong>, Windows-side processes are invisible from Linux and the reverse. rollcall detects this and prints it as a limitation on every run, so a zero agent count comes with the reason.</li>
+    <li><strong>Below about four concurrent agents, you do not need it.</strong> Open a terminal and look.</li>
+  </ul>
+
+  <h2>Try it</h2>
+  <p>Nothing is published to a package index; it runs straight from GitHub with <a href="https://docs.astral.sh/uv/">uv</a>. The <code>--demo</code> flag renders a bundled, clearly labelled synthetic snapshot. Drop the flag to read your own machine.</p>
+  <pre><code>uvx --from "git+https://github.com/jimmyjames177414/rollcall" rollcall --demo</code></pre>
+  <p><code>rollcall --json</code> emits the whole snapshot against a published schema. The table commands, such as <code>rollcall risks</code>, exit with code 2 when there is at least one critical or high finding, so they can run unattended. One example is a pre-push hook that stops you pushing while work is stranded in another worktree.</p>
+
+  <h2>What would prove it wrong</h2>
+  <p>I wrote down three ways the idea could fail before building it. If <code>UNCLAIMED</code> is always empty on real multi-agent machines, the headline finding is a non-event. If most worktrees come back <code>UNKNOWN</code>, the join does not pay for itself. And if reading git state in a worktree an agent is using interferes with that agent, the tool is harmful and should not exist. The third is why the read-only rule is enforced by tests rather than promised in prose.</p>
+  <p>rollcall is Apache-2.0, written in Python, and on GitHub at <a href="https://github.com/jimmyjames177414/rollcall">github.com/jimmyjames177414/rollcall</a>. If you run several agents in parallel, I would like to hear what it finds on your machine.</p>
+
+  <p class="back"><a href="../../#projects">← All projects</a></p>
+</article>
+</main>
+
+<footer>James Robert Miller · jimmyjames177414 · <a href="../../">jimmyjames177414.github.io</a><br>Personal site. Views and open-source projects here are my own, not Accenture's.</footer>
+
+<script>
+(function(){var r=document.documentElement,b=document.querySelector('.theme');
+b.setAttribute('aria-pressed',String(r.dataset.theme==='light'));
+b.addEventListener('click',function(){var n=r.dataset.theme==='light'?'dark':'light';r.dataset.theme=n;b.setAttribute('aria-pressed',String(n==='light'));try{localStorage.setItem('theme',n);}catch(e){}});})();
+</script>
+</body>
+</html>
